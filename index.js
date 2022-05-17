@@ -37,65 +37,7 @@ const talker = [
   },
 ];
 
-let tokens = ['1231231231231231'];
-
-const randomToken = () => {
-  const random = () => Math.random().toString(36).substr(2);
-  let tok = random();
-  while (tok.length < 16) tok += random();
-  return tok.split('').filter((_, index) => index < 16).join('');
-};
-
-const valid = (a, b, c) => a >= 3 && b >= 3 && c >= 3;
-const validEmail = (email) => {
-  const atSing = email.split('@');
-  if (!Array.isArray(atSing) || atSing.length !== 2) return false;
-  const splitPoint = atSing[1].split('.');
-  if (!Array.isArray(splitPoint) || splitPoint.length !== 2) return false;
-  return valid(atSing[0].length, splitPoint[0].length, splitPoint[1].length);
-};
-
-// não remova esse endpoint, e para o avaliador funcionar
-app.get('/', (_request, response) => {
-  response.status(HTTP_OK_STATUS).send();
-});
-
-app.get('/talker', (_req, res) => {
-  const algo = JSON.parse(fs.readFileSync(talkerJson, 'utf-8'));
-  res.status(200).json(algo);
-});
-
-app.get('/talker/:id', (req, res) => {
-  const { id } = req.params;
-  const findTalker = talker.find((r) => r.id === Number(id));
-  if (!findTalker) return res.status(404).json({ message: 'Pessoa palestrante não encontrada' });
-  res.status(200).json(findTalker);
-});
-
-const valid2 = (a) => {
- if (a === undefined || a.length === 0) return true;
- return false;
-};
-
-app.post('/login', (req, res) => {
-  const { email, password } = req.body;
-  if (valid2(email)) { 
-    return res.status(400).json({ message: 'O campo "email" é obrigatório' });
-  } if (!validEmail(email)) { 
-    return res.status(400).json({ message: 'O "email" deve ter o formato "email@email.com"' });
-  } if (valid2(password)) {
-    return res.status(400).json({ message: 'O campo "password" é obrigatório' });
-  } if (password.length < 6) {
-    return res.status(400).json({ message: 'O "password" deve ter pelo menos 6 caracteres' });
-  }
-  
-  const { body } = req;
-  const newToken = randomToken();
-  tokens = [...tokens, newToken];
-  body.token = newToken;
-  res.status(200).json(body);
-});
-
+let tokens = [];
 const invalidToken = (token) => {
   if (!token) return true;
   if (!tokens.find((element) => element === token)) return true;
@@ -160,6 +102,73 @@ const invalidTalkMensage = (talk) => {
   return 'O campo "watchedAt" deve ter o formato "dd/mm/aaaa"';
 };
 
+const randomToken = () => {
+  const random = () => Math.random().toString(36).substr(2);
+  let tok = random();
+  while (tok.length < 16) tok += random();
+  return tok.split('').filter((_, index) => index < 16).join('');
+};
+
+const valid = (a, b, c) => a >= 3 && b >= 3 && c >= 3;
+const validEmail = (email) => {
+  const atSing = email.split('@');
+  if (!Array.isArray(atSing) || atSing.length !== 2) return false;
+  const splitPoint = atSing[1].split('.');
+  if (!Array.isArray(splitPoint) || splitPoint.length !== 2) return false;
+  return valid(atSing[0].length, splitPoint[0].length, splitPoint[1].length);
+};
+
+// não remova esse endpoint, e para o avaliador funcionar
+app.get('/', (_request, response) => {
+  response.status(HTTP_OK_STATUS).send();
+});
+
+app.get('/talker/search', (req, res) => {
+  const { authorization: token } = req.headers;
+  if (invalidToken(token)) return res.status(401).json({ message: invalidTokenMensage(token) });
+  const { q } = req.query;
+  const algo = JSON.parse(fs.readFileSync(talkerJson, 'utf-8'));
+  if (!q) res.status(200).json(algo);
+  const novoAlgo = algo.filter(({ name }) => name.includes(q));
+  res.status(200).json(novoAlgo);
+});
+
+app.get('/talker', (_req, res) => {
+  const algo = JSON.parse(fs.readFileSync(talkerJson, 'utf-8'));
+  res.status(200).json(algo);
+});
+
+app.get('/talker/:id', (req, res) => {
+  const { id } = req.params;
+  const findTalker = talker.find((r) => r.id === Number(id));
+  if (!findTalker) return res.status(404).json({ message: 'Pessoa palestrante não encontrada' });
+  res.status(200).json(findTalker);
+});
+
+const valid2 = (a) => {
+ if (a === undefined || a.length === 0) return true;
+ return false;
+};
+
+app.post('/login', (req, res) => {
+  const { email, password } = req.body;
+  if (valid2(email)) { 
+    return res.status(400).json({ message: 'O campo "email" é obrigatório' });
+  } if (!validEmail(email)) { 
+    return res.status(400).json({ message: 'O "email" deve ter o formato "email@email.com"' });
+  } if (valid2(password)) {
+    return res.status(400).json({ message: 'O campo "password" é obrigatório' });
+  } if (password.length < 6) {
+    return res.status(400).json({ message: 'O "password" deve ter pelo menos 6 caracteres' });
+  }
+  
+  const { body } = req;
+  const newToken = randomToken();
+  tokens = [...tokens, newToken];
+  body.token = newToken;
+  res.status(200).json(body);
+});
+
 app.post('/talker', (req, res) => {
   const { authorization: token } = req.headers;
   if (invalidToken(token)) return res.status(401).json({ message: invalidTokenMensage(token) });
@@ -197,10 +206,11 @@ app.delete('/talker/:id', (req, res) => {
   const { id } = req.params;
   const algo = JSON.parse(fs.readFileSync(talkerJson, 'utf-8'));
   const algoNovo = algo.filter(({ id: id2 }) => Number(id) !== id2);
-  console.log(id, algoNovo, 'Oi mãe');
   fs.writeFileSync(talkerJson, JSON.stringify(algoNovo));
   res.status(204).json();
 });
+
+// /talker/search?q=searchTerm
 
 app.listen(PORT, () => {
   console.log('Online');
