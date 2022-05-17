@@ -1,7 +1,6 @@
 const express = require('express');
 const fs = require('fs');
 const bodyParser = require('body-parser');
-const { json } = require('body-parser');
 
 const app = express();
 app.use(bodyParser.json());
@@ -9,7 +8,7 @@ app.use(bodyParser.json());
 const HTTP_OK_STATUS = 200;
 const PORT = '3000';
 
-let talker = [
+const talker = [
   {
     name: 'Henrique Albuquerque',
     age: 62,
@@ -138,7 +137,7 @@ const validDate = (date) => {
 };
 
 const invalidTalkKeys = (talk) => {
-  if (!talk.rate || !talk.watchedAt) return true;
+  if (talk.rate === undefined || talk.watchedAt === undefined) return true;
   return false;
 };
 
@@ -166,15 +165,28 @@ app.post('/talker', (req, res) => {
   if (invalidName(name)) return res.status(400).json({ message: invalidNameMensage(name) });
   if (invalidAge(age)) return res.status(400).json({ message: invalidAgeMensage(age) });
   if (invalidTalk(talk)) return res.status(400).json({ message: invalidTalkMensage(talk) });
-  const sortTalker = [...talker];
+  const algo = JSON.parse(fs.readFileSync('talker.json', 'utf-8'));
+  const sortTalker = [...algo];
   sortTalker.sort((a, b) => b.id - a.id);
   const id = sortTalker[0].id + 1;
   const newTalker = { id, name, age, talk };
-  // talker = [...talker, newTalker];
-  const algo = JSON.parse(fs.readFileSync('talker.json', 'utf-8'));
   fs.writeFileSync('talker.json', JSON.stringify([...algo, newTalker]));
-  console.log(newTalker);
   res.status(201).json(newTalker);
+});
+
+app.put('/talker/:id', (req, res) => {
+  const { authorization: token } = req.headers;
+  if (invalidToken(token)) return res.status(401).json({ message: invalidTokenMensage(token) });
+  const { name, age, talk } = req.body;
+  if (invalidName(name)) return res.status(400).json({ message: invalidNameMensage(name) });
+  if (invalidAge(age)) return res.status(400).json({ message: invalidAgeMensage(age) });
+  if (invalidTalk(talk)) return res.status(400).json({ message: invalidTalkMensage(talk) });
+  const { id } = req.params;
+  const newTalker = { id: Number(id), name, age, talk };
+  const algo = JSON.parse(fs.readFileSync('talker.json', 'utf-8'));
+  const algoNovo = algo.filter(({ id: id2 }) => Number(id) !== id2);
+  fs.writeFileSync('talker.json', JSON.stringify([...algoNovo, newTalker]));
+  res.status(200).json(newTalker);
 });
 
 app.listen(PORT, () => {
