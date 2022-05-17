@@ -34,6 +34,13 @@ const talker = [
   },
 ];
 
+const token = () => {
+  const random = () => Math.random().toString(36).substr(2);
+  let tok = random();
+  while (tok.length < 16) tok += random();
+  return tok.split('').filter((_, index) => index < 16).join('');
+};
+
 // não remova esse endpoint, e para o avaliador funcionar
 app.get('/', (_request, response) => {
   response.status(HTTP_OK_STATUS).send();
@@ -48,6 +55,12 @@ app.get('/talker/:id', (req, res) => {
   const findTalker = talker.find((r) => r.id === Number(id));
   if (!findTalker) return res.status(404).json({ message: 'Pessoa palestrante não encontrada' });
   res.status(200).json(findTalker);
+});
+
+app.post('/login', (req, res) => {
+  const { body } = req;
+  body.token = token();
+  res.status(200).json(body);
 });
 
 app.listen(PORT, () => {
